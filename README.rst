@@ -29,6 +29,14 @@ Usage
     $ tailf --help
 
 
+Example
+-------
+
+.. code-block:: bash
+
+    Separating lines, line numbering, SQL indentation, and SQL syntax highlighting
+    $ tailf -sin --lang sql django_sql.log
+
 Licence
 -------
 
