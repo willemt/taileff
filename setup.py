@@ -11,7 +11,7 @@ def long_description():
 
 setup(
     name='taileff',
-    version='0.1.0',
+    version='0.2.0',
 
     description='tail -f for humans',
     long_description=long_description(),
@@ -35,7 +35,7 @@ setup(
     ],
     keywords='development logging',
     packages=find_packages(exclude=['contrib', 'docs', 'tests*']),
-    install_requires=['pygments', 'tailer', 'sqlparse', 'termcolor', 'docopt'],
+    install_requires=['pygments', 'sqlparse', 'termcolor', 'docopt'],
     package_data={},
     data_files=[],
     entry_points={
