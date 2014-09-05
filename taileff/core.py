@@ -9,8 +9,8 @@ Usage:
 
 Options:
   -h --help                  Show this screen
-  -l, --lang <language>      Language for syntax highlighting [default: guessing]
-  -g, --grouping <seconds>   Group events by time; don't if 0 [default: 3]
+  -l, --lang <language>      Language for syntax colouring [default: guessing]
+  -g, --grouping <seconds>   Group events by time; don't if 0 [default: 1]
   -s, --separator            Separate each event with a line
   -i, --indent               Indent output
   -n, --number               Number output
@@ -22,16 +22,16 @@ VERSION = "0.1.0"
 import os
 import sys
 import datetime
+import time
 import re
 import signal
 
 import sqlparse
-import tailer
 from docopt import docopt
 from termcolor import colored
 from pygments import highlight
 from pygments.formatters import Terminal256Formatter
-from pygments.lexers import get_lexer_by_name, guess_lexer
+from pygments.lexers import get_lexer_by_name, guess_lexer, get_all_lexers
 
 
 def print_grouping_separator(**kwargs):
@@ -71,22 +71,73 @@ def getTerminalSize():
     return int(cr[1]), int(cr[0])
 
 
+def follow(file, timeout_seconds):
+    """
+    Source: pytailer
+    """
+    trailing = True
+    line_terminators = ('\r\n', '\n', '\r')
+    delay = 1.0
+    seconds_waiting = 0
+    lines_read = 0
+
+    # move to end of file
+    file.seek(0, 2)
+
+    while 1:
+        where = file.tell()
+        line = file.readline()
+        if line:
+            if trailing and line in line_terminators:
+                # This is just the line terminator added to the end of the file
+                # before a new line, ignore.
+                trailing = False
+                continue
+
+            if line[-1] in line_terminators:
+                line = line[:-1]
+                if line[-1:] == '\r\n' and '\r\n' in line_terminators:
+                    # found crlf
+                    line = line[:-1]
+
+            trailing = False
+            seconds_waiting = 0
+            lines_read += 1
+            yield line
+        else:
+            if trailing and 0 < lines_read and 0 < timeout_seconds:
+                seconds_waiting += delay
+                if timeout_seconds <= seconds_waiting:
+                    lines_read = 0
+                    yield None
+            trailing = True
+            file.seek(where)
+            time.sleep(delay)
+
+
+class Grouping(object):
+    def __init__(self):
+        self.clear()
+
+    def clear(self):
+        self.events = 0
+        self.since = datetime.datetime.now()
+
+
 def go(args):
     f = open(args['<file>'])
-    time_since_last = None
-    events = 0
-    for line in tailer.follow(f):
-        events += 1
+    group = Grouping()
 
-        if not int(0 == args['--grouping']):
+    for line in follow(f, int(args['--grouping'])):
+        if not line:
             now = datetime.datetime.now()
-            if time_since_last:
-                diff = now - time_since_last
-                if int(args['--grouping']) < diff.seconds:
-                    print_grouping_separator(seconds=diff.seconds,
-                                             events=events)
-                    events = 0
-            time_since_last = now
+            print_grouping_separator(
+                seconds=(now - group.since).seconds - int(args['--grouping']),
+                events=group.events)
+            group.clear()
+            continue
+
+        group.events += 1
 
         if 'guessing' == args['--lang']:
             lexer = guess_lexer(line)
@@ -99,20 +150,19 @@ def go(args):
         text = highlight(line, lexer, Terminal256Formatter())
 
         if not args['--separator'] and args['--number']:
-            sys.stdout.write('{0} '.format(str(events).zfill(3)))
+            sys.stdout.write('{0} '.format(str(group.events).zfill(3)))
 
         print(text.strip())
 
         if args['--separator']:
-            msg = '{0}'.format(str(events).zfill(3)) if args['--number'] else ''
+            msg = '{0}'.format(str(group.events).zfill(3)) if args['--number'] else ''
             print_separator(msg)
 
 
 def get_language(lang):
-    from pygments.lexers import get_all_lexers
     potentials = set()
     for lexer in get_all_lexers():
-        potentials.update(set([name for name in lexer[1] if re.match(lang, name)]))
+        potentials.update(set([l for l in lexer[1] if re.match(lang, l)]))
     return sorted(list(potentials))
 
 
