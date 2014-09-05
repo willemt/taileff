@@ -152,7 +152,10 @@ def go(args):
         if not args['--separator'] and args['--number']:
             sys.stdout.write('{0} '.format(str(group.events).zfill(3)))
 
-        print(text.strip())
+        try:
+            print(text.strip())
+        except UnicodeEncodeError:
+            print(text.encode('utf-8').strip())
 
         if args['--separator']:
             msg = '{0}'.format(str(group.events).zfill(3)) if args['--number'] else ''
