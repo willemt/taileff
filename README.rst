@@ -11,7 +11,7 @@ taileff makes it easier to read the output of tail -f, using features such as:
 * separating lines
 * grouping separators
 * indentation (only for SQL atm)
-
+* duplicate line detection
 
 Installation
 ------------
@@ -34,8 +34,8 @@ Example
 
 .. code-block:: bash
 
-    Separating lines, line numbering, SQL indentation, and SQL syntax highlighting
-    $ tailf -sin --lang sql django_sql.log
+    Separating lines, duplicate line detection, line numbering, SQL indentation, and SQL syntax highlighting
+    $ tailf -sind --lang sql django_sql.log
 
 Licence
 -------
