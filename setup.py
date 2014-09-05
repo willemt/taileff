@@ -11,7 +11,7 @@ def long_description():
 
 setup(
     name='taileff',
-    version='0.2.0',
+    version='0.2.1',
 
     description='tail -f for humans',
     long_description=long_description(),

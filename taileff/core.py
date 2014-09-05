@@ -19,7 +19,7 @@ Options:
 
 """
 
-VERSION = "0.2.0"
+VERSION = "0.2.1"
 
 import os
 import sys
@@ -176,7 +176,7 @@ def go(args):
             if 1 < dupe['count']:
                 if '#' not in dupe:
                     dupe['#'] = len([c for c in group.dupes.values() if 1 < c['count']])
-                if '--show-duplicates' in args:
+                if args['--show-duplicates']:
                     msg = ' duplicate #{#} count:{count} '.format(**dupe)
                     prefix += colored(msg, 'red', attrs=['reverse']) + ' '
 
