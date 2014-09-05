@@ -2,7 +2,8 @@
 
 """
 Usage:
-  tailf <file> [-s -i -n -l <language> -g <seconds>]
+  tailf <file>
+    [-s -i -n -d -l <language> -g <seconds>]
   tailf languages <lang_regex>
   tailf --version
   tailf --help
@@ -14,6 +15,7 @@ Options:
   -s, --separator            Separate each event with a line
   -i, --indent               Indent output
   -n, --number               Number output
+  -d, --show-duplicates      Mark duplicate lines
 
 """
 
@@ -25,6 +27,8 @@ import datetime
 import time
 import re
 import signal
+import hashlib
+import collections
 
 import sqlparse
 from docopt import docopt
@@ -37,7 +41,9 @@ from pygments.lexers import get_lexer_by_name, guess_lexer, get_all_lexers
 def print_grouping_separator(**kwargs):
     (width, _) = getTerminalSize()
     kwargs['events_plural'] = 's' if 1 < kwargs['events'] else ''
-    text = " {events} event{events_plural}, {seconds}s elapsed ".format(**kwargs)
+    text = " {events} event{events_plural}, "\
+           "{seconds}s elapsed, "\
+           "{unique_events} unique events".format(**kwargs)
     print(colored(text + " " * (width - len(text)), 'white', attrs=['reverse']))
 
 
@@ -121,6 +127,7 @@ class Grouping(object):
 
     def clear(self):
         self.events = 0
+        self.dupes = collections.defaultdict(lambda: {'count': 0})
         self.since = datetime.datetime.now()
 
 
@@ -133,11 +140,23 @@ def go(args):
             now = datetime.datetime.now()
             print_grouping_separator(
                 seconds=(now - group.since).seconds - int(args['--grouping']),
-                events=group.events)
+                events=group.events,
+                unique_events=len(group.dupes))
             group.clear()
             continue
 
+        prefix = ''
         group.events += 1
+
+        if 0 < int(args['--grouping']):
+            dupe = group.dupes[line]
+            dupe['count'] += 1
+            if 1 < dupe['count']:
+                if '#' not in dupe:
+                    dupe['#'] = len([c for c in group.dupes.values() if 1 < c['count']])
+                if '--show-duplicates' in args:
+                    msg = ' duplicate #{#} count:{count} '.format(**dupe)
+                    prefix += colored(msg, 'red', attrs=['reverse']) + ' '
 
         if 'guessing' == args['--lang']:
             lexer = guess_lexer(line)
@@ -153,9 +172,9 @@ def go(args):
             sys.stdout.write('{0} '.format(str(group.events).zfill(3)))
 
         try:
-            print(text.strip())
+            print(prefix + text.strip())
         except UnicodeEncodeError:
-            print(text.encode('utf-8').strip())
+            print(prefix + text.encode('utf-8').strip())
 
         if args['--separator']:
             msg = '{0}'.format(str(group.events).zfill(3)) if args['--number'] else ''
