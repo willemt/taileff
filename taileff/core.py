@@ -19,7 +19,7 @@ Options:
 
 """
 
-VERSION = "0.1.0"
+VERSION = "0.2.0"
 
 import os
 import sys
@@ -36,6 +36,23 @@ from termcolor import colored
 from pygments import highlight
 from pygments.formatters import Terminal256Formatter
 from pygments.lexers import get_lexer_by_name, guess_lexer, get_all_lexers
+
+
+class FileTypeRegister(object):
+    files = {}
+
+    def add(self, cls):
+        self.files[cls.filename] = cls
+        return cls
+
+filetypes = FileTypeRegister()
+
+
+@filetypes.add
+class FileDjangoSqlLog:
+    stamp_regex = '^\[\d{4}-\d{2}-\d{2} \d{2}:\d{2}:\d{2},\d{3}\] \(\d+.\d+\) '
+    filename = 'django_sql.log'
+    syntax = 'sql'
 
 
 def print_grouping_separator(**kwargs):
@@ -133,6 +150,8 @@ class Grouping(object):
 
 def go(args):
     f = open(args['<file>'])
+    basename = os.path.basename(args['<file>'])
+    filetype = filetypes.files.get(basename, None)
     group = Grouping()
 
     for line in follow(f, int(args['--grouping'])):
@@ -149,7 +168,10 @@ def go(args):
         group.events += 1
 
         if 0 < int(args['--grouping']):
-            dupe = group.dupes[line]
+            item = re.sub(filetype.stamp_regex, '', line) if filetype else line
+            m = hashlib.md5()
+            m.update(item)
+            dupe = group.dupes[m.digest()]
             dupe['count'] += 1
             if 1 < dupe['count']:
                 if '#' not in dupe:
@@ -202,7 +224,11 @@ def main():
         exit(0)
     elif args['<file>']:
         lang = None
-        if 'guessing' != args['--lang']:
+        if args['--lang'] == 'guessing':
+            basename = os.path.basename(args['<file>'])
+            if basename in filetypes.files:
+                args['--lang'] = filetypes.files[basename].syntax
+        else:
             lang = get_language('^{0}$'.format(args['--lang']))
             if 0 == len(lang):
                 print('Error: Invalid language {0}\n'.format(args['--lang']))
