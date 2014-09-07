@@ -2,6 +2,12 @@
 taileff: tail -f for humans
 ****************************************
 
+.. image:: https://pypip.in/version/taileff/badge.svg
+    :target: https://pypi.python.org/pypi/taileff
+    
+.. image:: https://pypip.in/download/taileff/badge.svg
+    :target: https://pypi.python.org/pypi/taileff
+
 .. image:: taileff_showcase.gif
 
 taileff makes it easier to read the output of tail -f, using features such as:
